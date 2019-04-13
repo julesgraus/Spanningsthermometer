@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gevoelsthermometer</title>
+
+    <style>
+        body {
+            font-family: Verdana,Geneva, sans-serif;
+        }
+
+        .grid-container {
+            display: grid;
+            justify-items: center;
+            grid-template-areas:
+                "header header header"
+                "left thermometer right"
+                "prev . next";
+        }
+
+        .header {
+            grid-area: header;
+        }
+
+        .left {
+            grid-area: left;
+        }
+
+        .thermometer {
+            grid-area: thermometer;
+        }
+
+        .right {
+            grid-area: right;
+        }
+
+        .prev {
+            grid-area: prev;
+        }
+
+        .next {
+            grid-area: next;
+        }
+
+        #filename {
+            min-width: 240px;
+        }
+
+        #thermometer {
+        }
+    </style>
+</head>
+<body onload="init()">
+
+<div class="grid-container">
+    <div class="header"><h1>Spanningsthermometer</h1></div>
+    <div class="left">
+        <h2>Gevoelens</h2>
+        <textarea name="feelings" id="feelings" cols="30" rows="10"></textarea>
+    </div>
+    <div class="thermometer">
+        <canvas id="thermometer" width="300" height="605">
+        </canvas>
+    </div>
+    <div class="right">
+        <h2>Hoe werkt de thermometer?</h2>
+        <ol>
+            <li>Type links in het "Gevoelens" veld een gevoel.</li>
+            <li>Druk op ENTER en vul een volgend gevoel in. Minder intens als de eerste.</li>
+            <li>Herhaal voorgaande stappen tot je er een aantal hebt. Steeds minder intens.</li>
+            <li>Sleep over de thermometer om de intensiteit van je gevoel aan te geven.</li>
+        </ol>
+        <h2>Hoe deel / bewaar ik de thermometer?</h2>
+        <ol>
+            <li>Vul hierbeneden bij bestandsnaam een naam in voor je thermometer.</li>
+            <li>Druk op opslaan. Gebruik het daaruit volgende scherm om het bestand <br>op te slaan op je apparaat.
+                <br>Als je niet weet waar het bestand opgeslagen is, <br>dan staat het hoogstwaarschijnlijk op dezelfde plek als dit bestand.</li>
+            <li>Nu kun je het opgeslagen bestand, e-mailen, appen, enzovoorts.</li>
+        </ol>
+
+        <label for="filename">Bestandsnaam:</label>
+        <input type="text" name="filename" id="filename"> <a id="save" href="#">Opslaan</a>
+    </div>
+    <div class="prev"></div>
+    <div class="next"></div>
+</div>
+
+<script>
+class Thermometer {
+    constructor() {
+        this.canvas = document.getElementById('thermometer');
+        this.saveButton = document.getElementById('save');
+        this.filenameInput = document.getElementById('filename');
+        this.context = this.canvas.getContext('2d');
+        this.thermometerXOffset = 85;
+        this.thermometerBubbleRadius = 45;
+        this.mousedown = false;
+        this.currentPercentage = 0;
+        this.canvas.addEventListener('mousedown', this.mouseDownListener.bind(this));
+        this.canvas.addEventListener('mouseup', this.mouseUpListener.bind(this));
+        this.canvas.addEventListener('mouseleave', this.mouseUpListener.bind(this));
+        this.canvas.addEventListener('mousemove', this.mouseMoveListener.bind(this));
+        this.saveButton.addEventListener('click', this.saveFile.bind(this));
+
+        this.feelingsTextArea = document.getElementById('feelings');
+        this.feelingsTextArea.addEventListener('keyup', this.feelingsKeyDownListener.bind(this))
+    }
+
+    draw() {
+        this.drawBackground();
+        this.drawOutline();
+        this.drawBubbleFill();
+        this.drawGradientFill();
+    }
+
+    mouseDownListener(event) {
+        if (this.mousedown === true) return;
+        this.mousedown = true;
+        this.handleMouseAction(event);
+    }
+
+    mouseUpListener(event) {
+        if (this.mousedown === false) return;
+        this.mousedown = false;
+    }
+
+    mouseMoveListener(event) {
+        if (this.mousedown === false) return;
+        this.handleMouseAction(event);
+    }
+
+    feelingsKeyDownListener(event) {
+        let feelings = this.feelingsTextArea.value.split("\n");
+        this.clearText();
+        this.drawTextFromArray(feelings);
+    }
+
+    handleMouseAction(event) {
+        let offsetY = event.offsetY < 50 ? 50 : event.offsetY <= 500 ? event.offsetY : 500;
+        this.currentPercentage = this.mapNumber(50, 500, 100, 0, offsetY);
+        this.drawGradientFill();
+        this.save();
+        this.drawFill(this.currentPercentage);
+    }
+
+    drawBackground() {
+        this.context.beginPath();
+        this.context.rect(0, 0, this.canvas.width, this.canvas.height);
+        this.context.fillStyle = "#FFFFFF";
+        this.context.fill();
+        this.context.closePath();
+    }
+
+    drawOutline() {
+        this.context.beginPath();
+        this.context.lineWidth = 2;
+        this.context.strokeStyle = '#000000';
+        this.context.fillStyle = '#4593bd';
+        this.context.moveTo(50 + this.thermometerXOffset, 20);
+        this.context.lineTo(50 + this.thermometerXOffset, 500);
+        this.context.arcTo(5 + this.thermometerXOffset, 500, 5 + this.thermometerXOffset, 550, this.thermometerBubbleRadius); //Left top
+        this.context.arcTo(5 + this.thermometerXOffset, 600, 50 + this.thermometerXOffset, 600, this.thermometerBubbleRadius); //Left bottom
+        this.context.lineTo(80 + this.thermometerXOffset, 600);
+        this.context.arcTo(125 + this.thermometerXOffset, 600, 125 + this.thermometerXOffset, 550, this.thermometerBubbleRadius); //Right bottom
+        this.context.arcTo(125 + this.thermometerXOffset, 500, 80 + this.thermometerXOffset, 500, this.thermometerBubbleRadius); //Right top
+        this.context.lineTo(80 + this.thermometerXOffset, 20);
+        this.context.closePath();
+        this.context.stroke();
+    }
+
+    clearText() {
+        this.context.fillStyle = '#FFFFFF';
+        this.context.fillRect(0, 0, 49 + this.thermometerXOffset, 499);
+        this.context.closePath();
+        this.context.fillRect(0, 499, 49 + this.thermometerXOffset - 46, 599);
+        this.context.closePath();
+    }
+
+    drawTextFromArray(texts) {
+        let count = texts.length;
+        if (count < 1) return;
+        this.context.font = "16px Verdana";
+        this.context.fillStyle = '#4b4b4b';
+        let x = 3;
+        let yOffset = 30;
+        let base = count > 1 ? (497 - yOffset) / (count - 1) : 0;
+        for (let index = 0; index < count; index++) {
+            let y = (base * index) + yOffset;
+            this.context.fillText(texts[index], x, y, 50 + this.thermometerXOffset - 7);
+        }
+        this.save();
+    }
+
+
+    drawBubbleFill() {
+        this.context.beginPath();
+        this.context.moveTo(50 + this.thermometerXOffset, 500);
+        this.context.arcTo(5 + this.thermometerXOffset, 500, 5 + this.thermometerXOffset, 550, this.thermometerBubbleRadius); //Left top
+        this.context.arcTo(5 + this.thermometerXOffset, 600, 50 + this.thermometerXOffset, 600, this.thermometerBubbleRadius); //Left bottom
+        this.context.lineTo(80 + this.thermometerXOffset, 600);
+        this.context.arcTo(125 + this.thermometerXOffset, 600, 125 + this.thermometerXOffset, 550, this.thermometerBubbleRadius); //Right bottom
+        this.context.arcTo(125 + this.thermometerXOffset, 500, 80 + this.thermometerXOffset, 500, this.thermometerBubbleRadius); //Right top
+        this.context.fillStyle = '#4288FF';
+        this.context.fill();
+        this.context.closePath();
+    }
+
+    drawFill(percentage, fillColor = '#FFFFFF') {
+        this.context.beginPath();
+        this.context.fillStyle = fillColor;
+        this.context.moveTo(51 + this.thermometerXOffset, 21);
+        this.context.lineTo(79 + this.thermometerXOffset, 21); //to the right
+        this.context.lineTo(79 + this.thermometerXOffset, this.mapNumber(0, 100, 500, 21, percentage)); //Down //500 is max fill. 21 is zero fill for y axis
+        this.context.lineTo(51 + this.thermometerXOffset, this.mapNumber(0, 100, 500, 21, percentage)); //left //20 is max fill. 500 is zero fill for y axis
+        this.context.closePath(); //up
+        this.context.fill();
+    }
+
+    drawGradientFill() {
+        let gradient = this.context.createLinearGradient(51 + this.thermometerXOffset, 500, 79 + this.thermometerXOffset, 21);
+        gradient.addColorStop(0, '#4288FF');
+        gradient.addColorStop(0.5, '#FFF800');
+        gradient.addColorStop(1, '#FF2C25');
+        this.context.fillStyle = gradient;
+        this.context.fillRect(51 + this.thermometerXOffset, 21, 28, 479);
+    }
+
+    saveFile(mouseEvent) {
+        this.saveButton.href = this.canvas.toDataURL("image/png");
+        this.saveButton.download = this.filenameInput.value+'.png';
+    }
+
+    mapNumber(in_min, in_max, out_min, out_max, value) {
+        return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    }
+
+    load() {
+        if (!this.storageAvailable('localStorage')) return;
+        this.currentPercentage = parseInt(window.localStorage.getItem('percentage'));
+        this.feelingsTextArea.value = window.localStorage.getItem('feelings');
+        this.drawFill(this.currentPercentage);
+        this.feelingsKeyDownListener(undefined);
+    }
+
+    save() {
+        if (!this.storageAvailable('localStorage')) return;
+        window.localStorage.setItem('feelings', this.feelingsTextArea.value);
+        window.localStorage.setItem('percentage', this.currentPercentage);
+    }
+
+    suggestFilename() {
+        let date = new Date();
+        this.filenameInput.value = date.getUTCFullYear().toString() + (date.getUTCMonth() + 1).toString().padStart(2,'0') + date.getDate().toString().padStart(2,'0') + ' ' + date.getHours().toString().padStart(2,'0') + ':00' + ' Spanningsthermometer';
+    }
+
+    storageAvailable(type) {
+        let storage;
+        try {
+            storage = window[type];
+            var x = '__storage_test__';
+            storage.setItem(x, x);
+            storage.removeItem(x);
+            return true;
+        }
+        catch(e) {
+            return e instanceof DOMException && (
+                    // everything except Firefox
+                e.code === 22 ||
+                // Firefox
+                e.code === 1014 ||
+                // test name field too, because code might not be present
+                // everything except Firefox
+                e.name === 'QuotaExceededError' ||
+                // Firefox
+                e.name === 'NS_ERROR_DOM_QUOTA_REACHED') &&
+                // acknowledge QuotaExceededError only if there's something already stored
+                (storage && storage.length !== 0);
+        }
+    }
+}
+
+/**
+ * Called when the document is loaded
+ */
+function init()
+{
+    let meter = new Thermometer();
+    meter.draw();
+    meter.load();
+    meter.suggestFilename();
+}
+</script>
+</body>
+</html>
