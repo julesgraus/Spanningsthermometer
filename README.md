@@ -1,5 +1,5 @@
 # Spanningsthermometer
-A small tool in dutch, that helps people communicate about feelings. Designed to fit in one file so that it van be shared easely.
+A small tool in dutch, that helps people communicate about feelings. Designed to fit in one file so that it can be shared easely.
 
 ## Why did you create this?
 The main reason is probable not the main reason people should use it. I created this small tool to refresh my knowledge about the HTML 5 canvas. 
